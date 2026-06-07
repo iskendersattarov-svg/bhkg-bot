@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BHKG — Отчёт</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,sans-serif;background:#0f1117;color:#e2e8f0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.card{background:#1a1f2e;border:1px solid #2d3748;border-radius:16px;padding:32px;width:100%;max-width:500px}
+.logo{font-size:11px;font-weight:700;letter-spacing:3px;color:#f6c90e;margin-bottom:6px}
+h1{font-size:20px;font-weight:600;margin-bottom:4px}
+.sub{font-size:13px;color:#64748b;margin-bottom:20px}
+.drops{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.drop{border:2px dashed #2d3748;border-radius:10px;padding:20px 12px;cursor:pointer;text-align:center;transition:all 0.2s}
+.drop:hover{border-color:#f6c90e;background:rgba(246,201,14,0.05)}
+.drop.ok{border-color:#22c55e;border-style:solid;background:rgba(34,197,94,0.05)}
+.drop-icon{font-size:24px;margin-bottom:6px}
+.drop-name{font-size:12px;font-weight:600;color:#94a3b8}
+.drop-file{font-size:11px;color:#22c55e;margin-top:4px;word-break:break-all}
+input[type=file]{display:none}
+
+/* Date row */
+.date-row{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.date-label{font-size:12px;color:#94a3b8;white-space:nowrap}
+input[type=date]{flex:1;background:#0a0d14;border:1px solid #2d3748;border-radius:8px;color:#e2e8f0;padding:9px 12px;font-size:13px;font-family:inherit;outline:none}
+input[type=date]:focus{border-color:#f6c90e}
+
+.btn{width:100%;padding:13px;background:#f6c90e;color:#0f1117;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:12px}
+.btn:hover{background:#e5b800}
+.btn:disabled{background:#2d3748;color:#475569;cursor:not-allowed}
+.btn-outline{background:transparent;border:1px solid #2d3748;color:#94a3b8}
+.btn-outline:hover{border-color:#f6c90e;color:#f6c90e;background:transparent}
+
+.status{padding:12px 16px;border-radius:8px;font-size:13px;display:none;margin-bottom:12px}
+.s-ok{background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);color:#86efac;display:block}
+.s-err{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#fca5a5;display:block}
+.s-load{background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);color:#93c5fd;display:block}
+
+/* Result block */
+.result{background:#0a0d14;border:1px solid #2d3748;border-radius:10px;padding:16px;margin-bottom:12px;display:none}
+.result-title{font-size:11px;font-weight:700;letter-spacing:.08em;color:#f6c90e;text-transform:uppercase;margin-bottom:12px}
+.proj{margin-bottom:14px}
+.proj:last-child{margin-bottom:0}
+.proj-name{font-size:12px;font-weight:700;margin-bottom:6px}
+.proj-gp{color:#22c55e}
+.proj-wh{color:#60a5fa}
+.row{display:flex;justify-content:space-between;font-size:13px;padding:3px 0;border-bottom:1px solid #1a1f2e}
+.row:last-child{border-bottom:none}
+.row-lbl{color:#64748b}
+.row-val{font-weight:600}
+.val-green{color:#22c55e}
+.val-red{color:#f87171}
+.val-white{color:#e2e8f0}
+
+.preview{background:#0a0d14;border:1px solid #2d3748;border-radius:8px;padding:14px;font-size:12px;font-family:monospace;color:#86efac;white-space:pre-wrap;max-height:360px;overflow-y:auto;display:none;line-height:1.8;margin-bottom:12px}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">БИЗНЕС ХАУС КГ</div>
+  <h1>Кассовый отчёт</h1>
+  <p class="sub">Загрузите файлы Excel и выберите дату для движений</p>
+
+  <div class="drops">
+    <div class="drop" id="dz-gp" onclick="document.getElementById('f-gp').click()">
+      <div class="drop-icon">🟢</div>
+      <div class="drop-name">Green Park</div>
+      <div class="drop-file" id="fn-gp"></div>
+      <input type="file" id="f-gp" accept=".xlsx,.xls">
+    </div>
+    <div class="drop" id="dz-wh" onclick="document.getElementById('f-wh').click()">
+      <div class="drop-icon">🔵</div>
+      <div class="drop-name">White House</div>
+      <div class="drop-file" id="fn-wh"></div>
+      <input type="file" id="f-wh" accept=".xlsx,.xls">
+    </div>
+  </div>
+
+  <div class="date-row">
+    <span class="date-label">Движения за:</span>
+    <input type="date" id="pick-date">
+  </div>
+
+  <button class="btn" id="btn-calc" disabled onclick="calculate()">🔍 Рассчитать</button>
+
+  <div class="result" id="result"></div>
+  <div class="status" id="status"></div>
+
+  <button class="btn" id="btn-send" style="display:none" onclick="sendTelegram()">📤 Отправить в Telegram</button>
+  <button class="btn btn-outline" id="btn-reset" style="display:none" onclick="reset()">↺ Новый отчёт</button>
+
+  <div class="preview" id="preview"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+const files = { gp: null, wh: null };
+let parsed = { gp: null, wh: null, dateLabel: '', todayLabel: '' };
+
+// Set date picker default to yesterday (local time)
+(function() {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  document.getElementById('pick-date').value = `${y}-${m}-${day}`;
+})();
+
+document.getElementById('f-gp').onchange = e => loadFile(e.target.files[0], 'gp', 'dz-gp', 'fn-gp');
+document.getElementById('f-wh').onchange = e => loadFile(e.target.files[0], 'wh', 'dz-wh', 'fn-wh');
+
+['gp','wh'].forEach(key => {
+  const dz = document.getElementById('dz-' + key);
+  dz.ondragover = e => e.preventDefault();
+  dz.ondrop = e => { e.preventDefault(); loadFile(e.dataTransfer.files[0], key, 'dz-'+key, 'fn-'+key); };
+});
+
+function loadFile(file, key, dzId, fnId) {
+  if (!file) return;
+  files[key] = file;
+  document.getElementById(dzId).classList.add('ok');
+  document.getElementById(fnId).textContent = '✓ ' + file.name;
+  document.getElementById('btn-calc').disabled = false;
+}
+
+// Parse Excel date cell — handles serial number, Date object, and text ("16.05.2026")
+function parseCellDate(cell) {
+  if (!cell) return null;
+  let d;
+  if (typeof cell === 'number') {
+    // Math.floor strips time — prevents noon timestamps from rounding to next day
+    d = new Date(Math.floor(cell - 25569) * 86400000);
+  } else if (cell instanceof Date) {
+    d = new Date(Date.UTC(cell.getFullYear(), cell.getMonth(), cell.getDate()));
+  } else if (typeof cell === 'string') {
+    const dot = cell.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+    if (dot) {
+      d = new Date(Date.UTC(+dot[3], +dot[2] - 1, +dot[1]));
+    } else {
+      const iso = new Date(cell);
+      d = isNaN(iso) ? null : new Date(Date.UTC(iso.getFullYear(), iso.getMonth(), iso.getDate()));
+    }
+  } else return null;
+  return d && !isNaN(d.getTime()) ? d : null;
+}
+
+function sameDay(cell, target) {
+  const d = parseCellDate(cell);
+  if (!d) return false;
+  return d.getUTCFullYear() === target.getUTCFullYear() &&
+         d.getUTCMonth()    === target.getUTCMonth() &&
+         d.getUTCDate()     === target.getUTCDate();
+}
+
+// May 15, 2026 closing constants — running balance starts from May 16
+const STARTS = {
+  gp: { som: 465665, usd: 2200 },
+  wh: { som: 877900, usd: 40500 }
+};
+const START_DATE_UTC = Date.UTC(2026, 4, 16);
+
+// filterDate: the specific date to show movements for (any date the user picks)
+function parseKassa(wb, filterDate, isWH) {
+  const today = new Date();
+  const projKey = isWH ? 'wh' : 'gp';
+  const r = {
+    incNalSom: 0, incMbSom: 0, incNalUsd: 0, incMbUsd: 0,
+    expNalSom: 0, expMbSom: 0, expNalUsd: 0, expMbUsd: 0,
+    balNalSom: STARTS[projKey].som,
+    balNalUsd: STARTS[projKey].usd,
+    totalSold: 0, totalApts: 0, sumUsd: 0, sumSom: 0, cancels: 0, debtors: []
+  };
+
+  const ws = wb.Sheets['Касса 2026'];
+  if (ws) {
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: true });
+    for (let i = 2; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row || row.length < 30) continue;
+
+      const cellDate = parseCellDate(row[29]);
+      if (!cellDate || cellDate.getTime() < START_DATE_UTC) continue;
+
+      const cat  = row[30] ? String(row[30]).trim().toLowerCase() : '';
+      const amt  = row[31];
+      const cur  = row[32] ? String(row[32]).trim().toLowerCase() : '';
+      const pay  = row[33] ? String(row[33]).trim().toLowerCase() : '';
+
+      if (typeof amt !== 'number' || amt <= 0) continue;
+      if (cat.includes('конвертац')) continue;
+
+      const isMbank  = pay.includes('мбанк') || pay.includes('безнал') || pay.includes('мб');
+      const isIncome = cat.includes('приход');
+      const isSom    = cur.includes('сом');
+      const isUsd    = cur.includes('$');
+
+      // ── Running balance: ALL cash rows from May 16 to today ──
+      if (!isMbank) {
+        if (isIncome) {
+          if (isSom) r.balNalSom += amt;
+          if (isUsd) r.balNalUsd += amt;
+        } else {
+          if (isSom) r.balNalSom -= amt;
+          if (isUsd) r.balNalUsd -= amt;
+        }
+      }
+
+      // ── Daily movements: only the date the user selected ──
+      if (sameDay(row[29], filterDate)) {
+        if (!isMbank) {
+          if (isIncome) {
+            if (isSom) r.incNalSom += amt;
+            if (isUsd) r.incNalUsd += amt;
+          } else {
+            if (isSom) r.expNalSom += amt;
+            if (isUsd) r.expNalUsd += amt;
+          }
+        } else {
+          if (isIncome) {
+            if (isSom) r.incMbSom += amt;
+            if (isUsd) r.incMbUsd += amt;
+          } else {
+            if (isSom) r.expMbSom += amt;
+            if (isUsd) r.expMbUsd += amt;
+          }
+        }
+      }
+    }
+  }
+
+  // Sales & debtors
+  const salesSheetName = isWH ? 'Квартиры новый' : 'Продажа квартир';
+  const salesWs = wb.Sheets[salesSheetName];
+  if (salesWs) {
+    const rows = XLSX.utils.sheet_to_json(salesWs, { header: 1, defval: null, raw: true });
+    const grafCol    = isWH ? 14 : 15;
+    const lastPayCol = isWH ? 15 : 12;
+    const ostCol     = 11;
+    for (let i = 2; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row || !row[1] || typeof row[1] !== 'number') continue;
+      const cur = isWH ? (row[12] ? String(row[12]).trim() : '') : (row[8] ? String(row[8]).trim() : '');
+      const sum = row[9];
+      const ost = row[ostCol];
+      if (typeof sum === 'number' && sum > 0) {
+        r.totalSold++;
+        if (cur === '$') r.sumUsd += sum;
+        else r.sumSom += sum;
+      }
+      const graf    = row[grafCol]    ? String(row[grafCol]).trim()    : '';
+      const lastPay = row[lastPayCol];
+      if (!graf.includes('полная') && typeof ost === 'number' && ost > 0 && lastPay instanceof Date) {
+        const match = graf.match(/(\d+)/);
+        if (match) {
+          const payDay = parseInt(match[1]);
+          let nextPay = new Date(lastPay);
+          nextPay.setDate(payDay);
+          if (nextPay <= lastPay) nextPay.setMonth(nextPay.getMonth() + 1);
+          const daysOverdue = Math.floor((today - nextPay) / 86400000);
+          if (daysOverdue > 0) {
+            const phone = isWH ? (row[18] ? String(row[18]).trim() : '') : (row[14] ? String(row[14]).trim() : '');
+            const paid  = typeof row[10] === 'number' ? row[10] : 0;
+            const total = typeof row[9]  === 'number' ? row[9]  : 0;
+            r.debtors.push({ apt: row[1], name: row[2] ? String(row[2]).trim() : '', days: daysOverdue, ost, cur, phone, paid, total });
+          }
+        }
+      }
+    }
+    r.debtors.sort((a, b) => b.days - a.days);
+  }
+
+  return r;
+}
+
+function fmt(n) { return n ? Math.round(n).toLocaleString('ru-RU') : '0'; }
+
+function renderResult(gp, wh, dateLabel) {
+  const el = document.getElementById('result');
+  let html = `<div class="result-title">📊 Результат расчёта · ${dateLabel}</div>`;
+
+  function projHtml(d, cls, label) {
+    let h = `<div class="proj">`;
+    h += `<div class="proj-name ${cls}">${label}</div>`;
+    h += `<div class="row"><span class="row-lbl">Остаток нал сом</span><span class="row-val val-white">${fmt(d.balNalSom)}</span></div>`;
+    if (d.balNalUsd) h += `<div class="row"><span class="row-lbl">Остаток нал USD</span><span class="row-val val-white">$${fmt(d.balNalUsd)}</span></div>`;
+    if (d.incNalSom || d.incNalUsd) {
+      h += `<div class="row"><span class="row-lbl">Приход нал сом</span><span class="row-val val-green">+${fmt(d.incNalSom)}</span></div>`;
+      if (d.incNalUsd) h += `<div class="row"><span class="row-lbl">Приход нал USD</span><span class="row-val val-green">+$${fmt(d.incNalUsd)}</span></div>`;
+    }
+    if (d.expNalSom || d.expNalUsd) {
+      h += `<div class="row"><span class="row-lbl">Расход нал сом</span><span class="row-val val-red">-${fmt(d.expNalSom)}</span></div>`;
+      if (d.expNalUsd) h += `<div class="row"><span class="row-lbl">Расход нал USD</span><span class="row-val val-red">-$${fmt(d.expNalUsd)}</span></div>`;
+    }
+    if (d.incMbSom || d.expMbSom) h += `<div class="row"><span class="row-lbl">Mbank сом</span><span class="row-val">${fmt(d.incMbSom)}</span></div>`;
+    if (d.incMbUsd || d.expMbUsd) h += `<div class="row"><span class="row-lbl">Mbank USD</span><span class="row-val">$${fmt(d.incMbUsd)}</span></div>`;
+    h += `</div>`;
+    return h;
+  }
+
+  if (gp) html += projHtml(gp, 'proj-gp', '🟢 Green Park');
+  if (wh) html += projHtml(wh, 'proj-wh', '🔵 White House');
+  el.innerHTML = html;
+  el.style.display = 'block';
+}
+
+async function calculate() {
+  const btn = document.getElementById('btn-calc');
+  const status = document.getElementById('status');
+  btn.disabled = true;
+  status.style.display = 'none';
+  document.getElementById('result').style.display = 'none';
+  document.getElementById('preview').style.display = 'none';
+  document.getElementById('btn-send').style.display = 'none';
+  document.getElementById('btn-reset').style.display = 'none';
+
+  try {
+    const dateVal = document.getElementById('pick-date').value; // "YYYY-MM-DD"
+    if (!dateVal) throw new Error('Выберите дату');
+    const [y, m, d] = dateVal.split('-').map(Number);
+    const filterDate = new Date(Date.UTC(y, m - 1, d));
+    const dateLabel = filterDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+    const todayLabel = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+
+    let gp = null, wh = null;
+    if (files.gp) { const wb = XLSX.read(await files.gp.arrayBuffer(), { type: 'array', raw: true }); gp = parseKassa(wb, filterDate, false); }
+    if (files.wh) { const wb = XLSX.read(await files.wh.arrayBuffer(), { type: 'array', raw: true }); wh = parseKassa(wb, filterDate, true); }
+
+    parsed = { gp, wh, dateLabel, dateVal, todayLabel };
+    renderResult(gp, wh, dateLabel);
+
+    document.getElementById('btn-send').style.display = 'block';
+    document.getElementById('btn-reset').style.display = 'block';
+  } catch(e) {
+    status.className = 'status s-err';
+    status.textContent = '❌ ' + e.message;
+    status.style.display = 'block';
+    btn.disabled = false;
+  }
+
+  btn.disabled = false;
+}
+
+async function sendTelegram() {
+  const { gp, wh, dateLabel, dateVal, todayLabel } = parsed;
+  const status = document.getElementById('status');
+  const sendBtn = document.getElementById('btn-send');
+  sendBtn.disabled = true;
+  status.className = 'status s-load';
+  status.textContent = 'Отправляю в Telegram...';
+  status.style.display = 'block';
+
+  try {
+    const res = await fetch('/api/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gp, wh, yDate: dateLabel, rawDate: dateVal, today: todayLabel })
+    });
+    const json = await res.json();
+
+    if (json.ok) {
+      status.className = 'status s-ok';
+      status.textContent = '✅ Отправлено в Telegram!';
+      sendBtn.textContent = '✓ Отправлено';
+      if (json.message) {
+        const preview = document.getElementById('preview');
+        preview.textContent = json.message;
+        preview.style.display = 'block';
+      }
+    } else {
+      const err = json.results?.map(r => r.error).filter(Boolean).join('; ') || json.error || 'Ошибка';
+      throw new Error(err);
+    }
+  } catch(e) {
+    status.className = 'status s-err';
+    status.textContent = '❌ ' + e.message;
+    sendBtn.disabled = false;
+  }
+}
+
+function reset() {
+  files.gp = null; files.wh = null;
+  parsed = { gp: null, wh: null, dateLabel: '', todayLabel: '' };
+  ['dz-gp','dz-wh'].forEach(id => document.getElementById(id).classList.remove('ok'));
+  ['fn-gp','fn-wh'].forEach(id => document.getElementById(id).textContent = '');
+  document.getElementById('f-gp').value = '';
+  document.getElementById('f-wh').value = '';
+  document.getElementById('btn-calc').disabled = true;
+  document.getElementById('btn-send').style.display = 'none';
+  document.getElementById('btn-reset').style.display = 'none';
+  document.getElementById('btn-send').textContent = '📤 Отправить в Telegram';
+  document.getElementById('btn-send').disabled = false;
+  document.getElementById('result').style.display = 'none';
+  document.getElementById('preview').style.display = 'none';
+  document.getElementById('status').style.display = 'none';
+}
+</script>
+</body>
+</html>

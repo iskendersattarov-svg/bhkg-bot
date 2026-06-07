@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>BHKG Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#f0f2f7;color:#1a1d23;min-height:100vh}
+
+.header{background:#fff;border-bottom:1px solid #e2e5ef;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-logo{width:38px;height:38px;background:linear-gradient(135deg,#1a4db3,#2563eb);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;letter-spacing:.5px}
+.brand-name{font-size:15px;font-weight:700}
+.brand-sub{font-size:11px;color:#8892a4;margin-top:1px}
+.live-wrap{text-align:right}
+.live{display:flex;align-items:center;justify-content:flex-end;gap:5px;font-size:12px;font-weight:500;color:#16a34a}
+.dot{width:7px;height:7px;background:#16a34a;border-radius:50%;animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.hdate{font-size:11px;color:#8892a4;margin-top:2px}
+
+.tabs{background:#fff;border-bottom:1px solid #e2e5ef;display:flex;padding:0 16px;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{padding:13px 18px;font-size:13px;font-weight:500;color:#8892a4;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all .2s}
+.tab.on{color:#1a4db3;border-bottom-color:#1a4db3;font-weight:600}
+
+.main{padding:16px;max-width:880px;margin:0 auto}
+.page{display:none}.page.on{display:block}
+
+/* Cards */
+.sec{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#8892a4;margin:0 0 10px 2px}
+.grid{display:grid;gap:10px;margin-bottom:14px}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:1fr 1fr 1fr}
+.g4{grid-template-columns:1fr 1fr 1fr 1fr}
+.card{background:#fff;border:1px solid #e2e5ef;border-radius:14px;padding:16px;position:relative;overflow:hidden}
+.card-top{position:absolute;top:0;left:0;right:0;height:3px;border-radius:14px 14px 0 0}
+.card-lbl{font-size:11px;font-weight:500;color:#8892a4;margin-bottom:6px}
+.card-val{font-size:24px;font-weight:700;line-height:1;color:#1a1d23}
+.card-sub{font-size:11px;color:#8892a4;margin-top:4px}
+.badge{display:inline-flex;align-items:center;font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;margin-top:6px;gap:3px}
+.b-green{background:#dcfce7;color:#15803d}
+.b-red{background:#fee2e2;color:#dc2626}
+.b-blue{background:#dbeafe;color:#1d4ed8}
+.b-amber{background:#fef3c7;color:#92400e}
+.b-gray{background:#f1f3f9;color:#5a6478}
+
+/* Alert box */
+.alert{border-radius:12px;padding:14px 16px;margin-bottom:14px;display:flex;align-items:flex-start;gap:10px}
+.alert-red{background:#fff5f5;border:1px solid #fecaca}
+.alert-amber{background:#fffbeb;border:1px solid #fde68a}
+.alert-green{background:#f0fdf4;border:1px solid #bbf7d0}
+.alert-icon{font-size:18px;flex-shrink:0;margin-top:1px}
+.alert-title{font-size:13px;font-weight:600;margin-bottom:2px}
+.alert-sub{font-size:12px;color:#5a6478}
+
+/* Progress */
+.prog-section{background:#fff;border:1px solid #e2e5ef;border-radius:14px;padding:16px;margin-bottom:14px}
+.prog-title{font-size:13px;font-weight:600;margin-bottom:14px;color:#1a1d23}
+.prog-item{margin-bottom:14px}
+.prog-item:last-child{margin-bottom:0}
+.prog-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+.prog-label{font-size:12px;font-weight:500;color:#1a1d23}
+.prog-pct{font-size:14px;font-weight:700}
+.pct-red{color:#dc2626}
+.pct-amber{color:#d97706}
+.pct-green{color:#16a34a}
+.prog-nums{font-size:11px;color:#8892a4;margin-bottom:5px;display:flex;justify-content:space-between}
+.prog-bar{height:8px;background:#f0f2f7;border-radius:4px;overflow:hidden}
+.prog-fill{height:100%;border-radius:4px;transition:width 1.2s ease}
+.pf-red{background:linear-gradient(90deg,#dc2626,#ef4444)}
+.pf-amber{background:linear-gradient(90deg,#d97706,#f59e0b)}
+.pf-blue{background:linear-gradient(90deg,#1d4ed8,#3b82f6)}
+.pf-green{background:linear-gradient(90deg,#15803d,#22c55e)}
+
+/* Table rows */
+.tcard{background:#fff;border:1px solid #e2e5ef;border-radius:14px;padding:16px;margin-bottom:14px}
+.row-item{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid #f4f5f9}
+.row-item:last-child{border-bottom:none;padding-bottom:0}
+.ri-l{font-size:13px;color:#5a6478}
+.ri-r{font-size:13px;font-weight:600}
+.rv-green{color:#16a34a}.rv-red{color:#dc2626}.rv-blue{color:#1d4ed8}
+
+/* Debtor */
+.debtor{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f4f5f9;cursor:pointer;transition:background .15s}.debtor:hover{background:#f8f9fc;border-radius:10px;padding-left:6px}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal-box{background:#fff;border-radius:18px;padding:24px;max-width:380px;width:92%;box-shadow:0 20px 60px rgba(0,0,0,.25);position:relative}
+.modal-close{position:absolute;top:14px;right:14px;background:none;border:none;font-size:20px;cursor:pointer;color:#8892a4}
+.modal-title{font-size:15px;font-weight:700;margin-bottom:4px}
+.modal-sub{font-size:12px;color:#8892a4;margin-bottom:16px}
+.modal-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f4f5f9;font-size:13px}
+.modal-row:last-child{border-bottom:none}
+.modal-label{color:#8892a4}
+.modal-val{font-weight:600}
+.modal-bar{height:8px;border-radius:4px;background:#f4f5f9;margin:12px 0 4px}
+.modal-bar-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,#22c55e,#16a34a)}
+.modal-btns{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+.debtor:last-child{border-bottom:none;padding-bottom:0}
+.ddays{min-width:48px;height:48px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0}
+.dd-red{background:#fee2e2;color:#dc2626}
+.dd-amber{background:#fef3c7;color:#d97706}
+.dd-blue{background:#dbeafe;color:#2563eb}
+.dn{font-size:17px;font-weight:700;line-height:1}
+.dl{font-size:8px;font-weight:600;margin-top:1px;letter-spacing:.05em}
+.dinfo{flex:1;min-width:0}
+.dname{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dmeta{font-size:11px;color:#8892a4;margin-top:2px}
+.dsum{font-size:12px;font-weight:600;color:#5a6478;flex-shrink:0;text-align:right}
+.dbtns{display:flex;gap:5px;margin-top:5px;justify-content:flex-end}
+.dbtn{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;font-size:15px;text-decoration:none;border:none;cursor:pointer}
+.dbtn-wa{background:#dcfce7;color:#16a34a}
+.dbtn-call{background:#dbeafe;color:#1d4ed8}
+.dbtn-sms{background:#fef3c7;color:#d97706}
+.sms-bar{background:#fff;border:1px solid #e2e5ef;border-radius:12px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.sms-btn{padding:8px 16px;background:#d97706;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
+.sms-btn:disabled{background:#e2e5ef;color:#8892a4;cursor:not-allowed}
+.sms-result{font-size:12px;margin-top:6px;padding:8px 12px;border-radius:8px;display:none}
+.sms-ok{background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0}
+.sms-err{background:#fff5f5;color:#dc2626;border:1px solid #fecaca}
+
+.filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.filt{font-size:11px;font-weight:600;padding:5px 12px;border-radius:20px;border:1px solid #e2e5ef;background:#fff;color:#8892a4;cursor:pointer;transition:all .15s;font-family:inherit}
+.filt.on{background:#1a4db3;color:#fff;border-color:#1a4db3}
+.show-more{text-align:center;padding:10px;font-size:12px;color:#1a4db3;cursor:pointer;font-weight:500}
+
+.refresh{display:flex;align-items:center;gap:6px;background:#f0f4ff;border:1px solid #c7d7f9;color:#1a4db3;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;margin:0 auto 16px;font-family:inherit}
+
+.spinner-wrap{display:flex;flex-direction:column;align-items:center;padding:60px;gap:14px}
+.spinner{width:28px;height:28px;border:2px solid #e2e5ef;border-top-color:#1a4db3;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.stxt{font-size:13px;color:#8892a4}
+
+@media(max-width:600px){
+  .g3,.g4{grid-template-columns:1fr 1fr}
+  .g2{grid-template-columns:1fr 1fr}
+  .card-val{font-size:20px}
+  .main{padding:10px}
+  .card{padding:12px}
+  .tab{padding:10px 12px;font-size:12px}
+  .prog-section{padding:12px}
+  .tcard{padding:12px}
+}
+@media(max-width:380px){
+  .g2,.g3,.g4{grid-template-columns:1fr}
+  .card-val{font-size:22px}
+  .header{padding:10px 14px}
+  .brand-logo{width:32px;height:32px;font-size:12px}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="brand">
+    <div class="brand-logo">БХ</div>
+    <div>
+      <div class="brand-name">Бизнес Хаус КГ</div>
+      <div class="brand-sub">Панель управления</div>
+    </div>
+  </div>
+  <div class="live-wrap">
+    <div class="live"><div class="dot"></div><span id="hTime">--:--</span></div>
+    <div class="hdate" id="hDate">--</div>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab on" onclick="showTab('fin',this)">💰 Остатки</div>
+  <div class="tab" onclick="showTab('cash',this)">📋 Касса</div>
+  <div class="tab" onclick="showTab('debt',this)">⚠️ Должники</div>
+  <div class="tab" onclick="showTab('sales',this)">🏠 Продажи</div>
+</div>
+
+<div class="main">
+  <div class="page on" id="p-fin"><div class="spinner-wrap"><div class="spinner"></div><div class="stxt">Загружаю...</div></div></div>
+  <div class="page" id="p-cash"><div class="spinner-wrap"><div class="spinner"></div><div class="stxt">Загружаю...</div></div></div>
+  <div class="page" id="p-debt"><div class="spinner-wrap"><div class="spinner"></div><div class="stxt">Загружаю...</div></div></div>
+  <div class="page" id="p-sales"><div class="spinner-wrap"><div class="spinner"></div><div class="stxt">Загружаю...</div></div></div>
+</div>
+
+<script>
+const S={bal:{},sales:{},debtors:[],mov:[],df:'all',dlim:20};
+const fmt=n=>n?Math.round(n).toLocaleString('ru-RU'):'0';
+const fmtM=n=>n>=1000000?(n/1000000).toFixed(1)+'M':n>=1000?(n/1000).toFixed(0)+'K':fmt(n);
+
+function showTab(id,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.getElementById('p-'+id).classList.add('on');
+  el.classList.add('on');
+}
+
+function tick(){
+  const n=new Date();
+  document.getElementById('hTime').textContent=n.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('hDate').textContent=n.toLocaleDateString('ru-RU',{day:'numeric',month:'long'});
+}
+tick();setInterval(tick,30000);
+
+async function load(){
+  try{
+    const r=await fetch('/api/data');
+    const d=await r.json();
+    for(const rec of d.balances||[]){
+      const name=rec.fields?.Name,notes=rec.fields?.Notes||'';
+      if(!name)continue;
+      const obj={};
+      for(const line of notes.split('\n')){
+        const[k,v]=line.split('=');
+        if(!k||!v)continue;
+        const key=k.trim();
+        obj[key]=key==='date'?v.trim():(parseFloat(v.trim())||0);
+      }
+      S.bal[name]=obj;
+    }
+    for(const rec of d.sales||[]){
+      const f=rec.fields;
+      if(!f?.['Объект'])continue;
+      S.sales[f['Объект']]={sold:f['Продано']||0,total:f['Всего']||0,sumUsd:f['Сумма USD']||0,cancels:f['Расторжений']||0};
+    }
+    S.debtors=(d.debtors||[]).map(r=>({
+      proj:r.fields?.['Объект']||'',apt:r.fields?.['Квартира']||0,
+      name:r.fields?.['Имя']||'',days:r.fields?.['Дней просрочки']||0,
+      ost:r.fields?.['Остаток']||0,cur:r.fields?.['Валюта']||'$',
+      phone:r.fields?.['Телефон']||'',
+      paid:r.fields?.['Оплачено']||0,
+      total:r.fields?.['Сумма договора']||0
+    })).sort((a,b)=>b.days-a.days);
+    S.mov=(d.movements||[]).map(r=>({
+      date:r.fields?.['Дата']||'',proj:r.fields?.['Объект']||'',
+      incSom:r.fields?.['Приход нал сом']||0,expSom:r.fields?.['Расход нал сом']||0,
+      incUsd:r.fields?.['Приход нал USD']||0,expUsd:r.fields?.['Расход нал USD']||0,
+      mbSom:r.fields?.['Приход Mbank']||0,
+      balSom:r.fields?.['Остаток сом']||0,balUsd:r.fields?.['Остаток USD']||0
+    })).sort((a,b)=>b.date.localeCompare(a.date));
+    renderFin();renderCash();renderDebt();renderSales();
+  }catch(e){
+    document.getElementById('p-fin').innerHTML=`<div class="spinner-wrap"><div class="stxt" style="color:#dc2626">Ошибка: ${e.message}</div></div>`;
+  }
+}
+
+function renderFin(){
+  const gp=S.bal['Green Park']||{},wh=S.bal['White House']||{};
+  const gpM=S.mov.find(m=>m.proj==='Green Park')||{};
+  const whM=S.mov.find(m=>m.proj==='White House')||{};
+  const totSom=(gp.nal_som||0)+(wh.nal_som||0);
+  const totUsd=(gp.nal_usd||0)+(wh.nal_usd||0);
+
+  // Ожидаемые платежи мая
+  const payments={
+    'White House':{expSom:16099975,colSom:6225500,expUsd:180124,colUsd:45681},
+    'Green Park':{expSom:10589006,colSom:1695970,expUsd:212811,colUsd:147383}
+  };
+
+  const gpPay=payments['Green Park'];
+  const whPay=payments['White House'];
+  const gpPctSom=gpPay.expSom>0?Math.round(gpPay.colSom/gpPay.expSom*100):0;
+  const gpPctUsd=gpPay.expUsd>0?Math.round(gpPay.colUsd/gpPay.expUsd*100):0;
+  const whPctSom=whPay.expSom>0?Math.round(whPay.colSom/whPay.expSom*100):0;
+  const whPctUsd=whPay.expUsd>0?Math.round(whPay.colUsd/whPay.expUsd*100):0;
+
+  const alertColor=pct=>pct<30?'red':pct<60?'amber':'green';
+  const alertIcon=pct=>pct<30?'🔴':pct<60?'🟡':'🟢';
+
+  document.getElementById('p-fin').innerHTML=`
+  <button class="refresh" onclick="location.reload()">↻ Обновить</button>
+
+  <div class="sec">Остаток в кассе</div>
+  <div class="grid g2">
+    <div class="card">
+      <div class="card-top" style="background:#16a34a"></div>
+      <div class="card-lbl">🟢 Green Park</div>
+      <div class="card-val">${fmt(gp.nal_som||0)}</div>
+      <div class="card-sub">сом · наличные</div>
+      ${gp.nal_usd?`<div class="badge b-blue">$${fmt(gp.nal_usd)}</div>`:''}
+    </div>
+    <div class="card">
+      <div class="card-top" style="background:#1d4ed8"></div>
+      <div class="card-lbl">🔵 White House</div>
+      <div class="card-val">${fmt(wh.nal_som||0)}</div>
+      <div class="card-sub">сом · наличные</div>
+      ${wh.nal_usd?`<div class="badge b-blue">$${fmt(wh.nal_usd)}</div>`:''}
+    </div>
+  </div>
+  <div class="grid g2">
+    <div class="card">
+      <div class="card-top" style="background:#7c3aed"></div>
+      <div class="card-lbl">Итого в кассе</div>
+      <div class="card-val" style="color:#1a4db3">${fmt(totSom)}</div>
+      <div class="card-sub">сом · оба объекта</div>
+      ${totUsd?`<div class="badge b-blue">$${fmt(totUsd)}</div>`:''}
+    </div>
+    <div class="card">
+      <div class="card-top" style="background:#dc2626"></div>
+      <div class="card-lbl">⚠️ Должников</div>
+      <div class="card-val" style="color:#dc2626">${S.debtors.length}</div>
+      <div class="card-sub">человек</div>
+    </div>
+  </div>
+
+  <div class="sec" style="margin-top:6px">Сбор платежей — май 2026</div>
+
+  <div class="alert alert-${alertColor(gpPctSom)}">
+    <div class="alert-icon">${alertIcon(gpPctSom)}</div>
+    <div>
+      <div class="alert-title">🟢 Green Park</div>
+      <div class="alert-sub">Сом: ${fmtM(gpPay.colSom)} из ${fmtM(gpPay.expSom)} (${gpPctSom}%) · Не оплатили: ${fmtM(gpPay.expSom-gpPay.colSom)} сом</div>
+      <div class="alert-sub" style="margin-top:3px">USD: $${fmt(gpPay.colUsd)} из $${fmt(gpPay.expUsd)} (${gpPctUsd}%) · Не оплатили: $${fmt(gpPay.expUsd-gpPay.colUsd)}</div>
+    </div>
+  </div>
+
+  <div class="alert alert-${alertColor(whPctSom)}">
+    <div class="alert-icon">${alertIcon(whPctSom)}</div>
+    <div>
+      <div class="alert-title">🔵 White House</div>
+      <div class="alert-sub">Сом: ${fmtM(whPay.colSom)} из ${fmtM(whPay.expSom)} (${whPctSom}%) · Не оплатили: ${fmtM(whPay.expSom-whPay.colSom)} сом</div>
+      <div class="alert-sub" style="margin-top:3px">USD: $${fmt(whPay.colUsd)} из $${fmt(whPay.expUsd)} (${whPctUsd}%) · Не оплатили: $${fmt(whPay.expUsd-whPay.colUsd)}</div>
+    </div>
+  </div>
+
+  <div class="prog-section">
+    <div class="prog-title">График сбора — Сом</div>
+    <div class="prog-item">
+      <div class="prog-head">
+        <div class="prog-label">🟢 Green Park</div>
+        <div class="prog-pct pct-${alertColor(gpPctSom)}">${gpPctSom}%</div>
+      </div>
+      <div class="prog-nums">
+        <span>Собрано: ${fmt(gpPay.colSom)} сом</span>
+        <span>План: ${fmt(gpPay.expSom)} сом</span>
+      </div>
+      <div class="prog-bar"><div class="prog-fill pf-${alertColor(gpPctSom)}" id="pf-gp" style="width:0%"></div></div>
+    </div>
+    <div class="prog-item">
+      <div class="prog-head">
+        <div class="prog-label">🔵 White House</div>
+        <div class="prog-pct pct-${alertColor(whPctSom)}">${whPctSom}%</div>
+      </div>
+      <div class="prog-nums">
+        <span>Собрано: ${fmt(whPay.colSom)} сом</span>
+        <span>План: ${fmt(whPay.expSom)} сом</span>
+      </div>
+      <div class="prog-bar"><div class="prog-fill pf-${alertColor(whPctSom)}" id="pf-wh" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <div class="prog-section">
+    <div class="prog-title">График сбора — USD</div>
+    <div class="prog-item">
+      <div class="prog-head">
+        <div class="prog-label">🟢 Green Park</div>
+        <div class="prog-pct pct-${alertColor(gpPctUsd)}">${gpPctUsd}%</div>
+      </div>
+      <div class="prog-nums">
+        <span>Собрано: $${fmt(gpPay.colUsd)}</span>
+        <span>План: $${fmt(gpPay.expUsd)}</span>
+      </div>
+      <div class="prog-bar"><div class="prog-fill pf-${alertColor(gpPctUsd)}" id="pf-gp-u" style="width:0%"></div></div>
+    </div>
+    <div class="prog-item">
+      <div class="prog-head">
+        <div class="prog-label">🔵 White House</div>
+        <div class="prog-pct pct-${alertColor(whPctUsd)}">${whPctUsd}%</div>
+      </div>
+      <div class="prog-nums">
+        <span>Собрано: $${fmt(whPay.colUsd)}</span>
+        <span>План: $${fmt(whPay.expUsd)}</span>
+      </div>
+      <div class="prog-bar"><div class="prog-fill pf-${alertColor(whPctUsd)}" id="pf-wh-u" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  `;
+
+  setTimeout(()=>{
+    ['pf-gp','pf-wh','pf-gp-u','pf-wh-u'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(!el)return;
+      const pct=id==='pf-gp'?gpPctSom:id==='pf-wh'?whPctSom:id==='pf-gp-u'?gpPctUsd:whPctUsd;
+      el.style.width=pct+'%';
+    });
+  },100);
+}
+
+function renderCash(){
+  const all = S.mov;
+  if (!all.length) {
+    document.getElementById('p-cash').innerHTML = `<div class="spinner-wrap"><div class="stxt" style="color:#8892a4">Нет данных — загрузите Excel</div></div>`;
+    return;
+  }
+  const f = S.cf || 'all';
+  let list = f === 'gp' ? all.filter(m => m.proj === 'Green Park')
+           : f === 'wh' ? all.filter(m => m.proj === 'White House')
+           : all;
+
+  const byDate = {};
+  for (const m of list) {
+    if (!byDate[m.date]) byDate[m.date] = [];
+    byDate[m.date].push(m);
+  }
+  const dates = Object.keys(byDate).sort((a,b) => b.localeCompare(a));
+
+  let html = `<div class="filters">
+    ${[['all','Все'],['gp','🟢 Green Park'],['wh','🔵 White House']].map(([v,l])=>
+      `<button class="filt ${f===v?'on':''}" onclick="scf('${v}')">${l}</button>`
+    ).join('')}
+  </div>`;
+
+  for (const date of dates) {
+    const rows = byDate[date];
+    const d = new Date(date + 'T00:00:00Z');
+    const dLabel = d.toLocaleDateString('ru-RU', { day:'numeric', month:'long', year:'numeric', timeZone:'UTC' });
+    html += `<div class="tcard" style="margin-bottom:10px">`;
+    html += `<div style="font-size:12px;font-weight:700;color:#1a1d23;margin-bottom:10px">📅 ${dLabel}</div>`;
+    for (const m of rows) {
+      const emoji = m.proj === 'Green Park' ? '🟢' : '🔵';
+      html += `<div style="font-size:11px;font-weight:600;color:#8892a4;letter-spacing:.05em;margin:8px 0 5px">${emoji} ${m.proj}</div>`;
+      if (m.incSom) html += `<div class="row-item"><div class="ri-l">Приход нал</div><div class="ri-r rv-green">+${fmt(m.incSom)} сом</div></div>`;
+      if (m.incUsd) html += `<div class="row-item"><div class="ri-l">Приход нал</div><div class="ri-r rv-green">+$${fmt(m.incUsd)}</div></div>`;
+      if (m.expSom) html += `<div class="row-item"><div class="ri-l">Расход нал</div><div class="ri-r rv-red">−${fmt(m.expSom)} сом</div></div>`;
+      if (m.expUsd) html += `<div class="row-item"><div class="ri-l">Расход нал</div><div class="ri-r rv-red">−$${fmt(m.expUsd)}</div></div>`;
+      if (m.mbSom)  html += `<div class="row-item"><div class="ri-l">Mbank</div><div class="ri-r rv-blue">${fmt(m.mbSom)} сом</div></div>`;
+      html += `<div class="row-item"><div class="ri-l">Остаток</div><div class="ri-r" style="font-weight:700">${fmt(m.balSom)} сом${m.balUsd?' / $'+fmt(m.balUsd):''}</div></div>`;
+    }
+    html += `</div>`;
+  }
+  document.getElementById('p-cash').innerHTML = html;
+}
+function scf(f){ S.cf=f; renderCash(); }
+
+function renderDebt(){
+  let list=S.debtors;
+  if(S.df==='gp')list=list.filter(d=>d.proj==='Green Park');
+  else if(S.df==='wh')list=list.filter(d=>d.proj==='White House');
+  else if(S.df==='180')list=list.filter(d=>d.days>180);
+  else if(S.df==='60')list=list.filter(d=>d.days>60&&d.days<=180);
+  const shown=list.slice(0,S.dlim);
+  const more=list.length-shown.length;
+
+  document.getElementById('p-debt').innerHTML=`
+  <div class="filters">
+    ${[['all','Все'],['gp','🟢 Green Park'],['wh','🔵 White House'],['180','180+ дней'],['60','60–180 дней']].map(([v,l])=>
+      `<button class="filt ${S.df===v?'on':''}" onclick="sdf('${v}')">${l}</button>`
+    ).join('')}
+  </div>
+  <div class="sms-bar">
+    <span style="font-size:12px;color:#5a6478">📱 SMS рассылка должникам</span>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="sms-btn" onclick="sendBulkSms(0)">Все (${list.filter(d=>d.phone).length})</button>
+      <button class="sms-btn" onclick="sendBulkSms(30)">30+ дней (${list.filter(d=>d.phone&&d.days>=30).length})</button>
+      <button class="sms-btn" onclick="sendBulkSms(60)">60+ дней (${list.filter(d=>d.phone&&d.days>=60).length})</button>
+    </div>
+  </div>
+  <div class="sms-result" id="sms-result"></div>
+  <div class="sec">${list.length} должников</div>
+  <div class="tcard">
+    ${shown.length===0?'<div style="text-align:center;padding:20px;color:#8892a4">Нет данных</div>':''}
+    ${shown.map(d=>`
+    <div class="debtor" onclick="openDebtor(${JSON.stringify(d).replace(/"/g,'&quot;')})">
+      <div class="ddays ${d.days>180?'dd-red':d.days>60?'dd-amber':'dd-blue'}">
+        <div class="dn">${d.days}</div>
+        <div class="dl">ДНЕЙ</div>
+      </div>
+      <div class="dinfo">
+        <div class="dname">${d.name}</div>
+        <div class="dmeta">Кв.${d.apt} · ${d.proj==='Green Park'?'🟢 GP':'🔵 WH'}</div>
+      </div>
+      <div class="dsum">
+        ${fmt(d.ost)}<br>${d.cur}
+        ${d.phone?`<div class="dbtns">
+          <a class="dbtn dbtn-wa" href="https://wa.me/996${d.phone.replace(/\D/g,'').replace(/^0/,'')}?text=${encodeURIComponent('Здравствуйте, '+d.name+'! Напоминаем о задолженности по кв.'+d.apt+' ('+d.proj+'). Остаток: '+Math.round(d.ost).toLocaleString('ru-RU')+' '+d.cur+'. Просрочено '+d.days+' дн. Просьба оплатить. Business House KG')}" target="_blank" title="WhatsApp">💬</a>
+          <a class="dbtn dbtn-call" href="tel:${d.phone}" title="Позвонить">📞</a>
+          <button class="dbtn dbtn-sms" onclick="sendOneSms(${JSON.stringify(d)})" title="SMS">📱</button>
+        </div>`:''}
+      </div>
+    </div>`).join('')}
+    ${more>0?`<div class="show-more" onclick="sm()">Показать ещё ${more} →</div>`:''}
+  </div>
+  `;
+}
+function sdf(f){S.df=f;S.dlim=20;renderDebt();}
+function sm(){S.dlim+=20;renderDebt();}
+
+function renderSales(){
+  const gp=S.sales['Green Park']||{};
+  const wh=S.sales['White House']||{};
+  // Correct totals from Excel
+  const gpTotal=258,whTotal=780;
+  const gpSold=gp.sold||210,whSold=wh.sold||413;
+  const gpFree=gpTotal-gpSold,whFree=whTotal-whSold;
+  const gpPct=Math.round(gpSold/gpTotal*100);
+  const whPct=Math.round(whSold/whTotal*100);
+
+  document.getElementById('p-sales').innerHTML=`
+  <div class="sec">Итого по проекту</div>
+  <div class="grid g4">
+    <div class="card">
+      <div class="card-top" style="background:#1d4ed8"></div>
+      <div class="card-lbl">Всего квартир</div>
+      <div class="card-val">${fmt(gpTotal+whTotal)}</div>
+      <div class="card-sub">оба объекта</div>
+    </div>
+    <div class="card">
+      <div class="card-top" style="background:#16a34a"></div>
+      <div class="card-lbl">Продано</div>
+      <div class="card-val" style="color:#16a34a">${fmt(gpSold+whSold)}</div>
+      <div class="card-sub">${Math.round((gpSold+whSold)/(gpTotal+whTotal)*100)}% от всех</div>
+    </div>
+    <div class="card">
+      <div class="card-top" style="background:#8892a4"></div>
+      <div class="card-lbl">Свободно</div>
+      <div class="card-val">${fmt(gpFree+whFree)}</div>
+      <div class="card-sub">квартир</div>
+    </div>
+    <div class="card">
+      <div class="card-top" style="background:#dc2626"></div>
+      <div class="card-lbl">Расторжений</div>
+      <div class="card-val" style="color:#dc2626">${(gp.cancels||0)+(wh.cancels||0)}</div>
+      <div class="card-sub">всего</div>
+    </div>
+  </div>
+
+  <div class="prog-section">
+    <div class="prog-title">Наполненность объектов</div>
+    <div class="prog-item">
+      <div class="prog-head">
+        <div class="prog-label">🟢 Green Park · ${gpSold} из ${gpTotal}</div>
+        <div class="prog-pct pct-green">${gpPct}%</div>
+      </div>
+      <div class="prog-nums">
+        <span>Рассрочка: 115 · Полная: 95</span>
+        <span>Свободно: ${gpFree}</span>
+      </div>
+      <div class="prog-bar"><div class="prog-fill pf-green" id="pf-gps" style="width:0%"></div></div>
+    </div>
+    <div class="prog-item">
+      <div class="prog-head">
+        <div class="prog-label">🔵 White House · ${whSold} из ${whTotal}</div>
+        <div class="prog-pct pct-${whPct>60?'green':whPct>40?'amber':'red'}">${whPct}%</div>
+      </div>
+      <div class="prog-nums">
+        <span>Рассрочка: 340 · Полная: 73</span>
+        <span>Свободно: ${whFree}</span>
+      </div>
+      <div class="prog-bar"><div class="prog-fill pf-blue" id="pf-whs" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <div class="sec">Детали по объектам</div>
+  <div class="grid g2">
+    <div class="tcard">
+      <div style="font-size:13px;font-weight:600;margin-bottom:12px">🟢 Green Park</div>
+      <div class="row-item"><div class="ri-l">Всего квартир</div><div class="ri-r">${gpTotal}</div></div>
+      <div class="row-item"><div class="ri-l">Продано</div><div class="ri-r rv-green">${gpSold}</div></div>
+      <div class="row-item"><div class="ri-l">Свободно</div><div class="ri-r">${gpFree}</div></div>
+      <div class="row-item"><div class="ri-l">Рассрочка</div><div class="ri-r rv-blue">115</div></div>
+      <div class="row-item"><div class="ri-l">Полная оплата</div><div class="ri-r rv-green">95</div></div>
+      ${gp.sumUsd?`<div class="row-item"><div class="ri-l">Сумма договоров</div><div class="ri-r">$${fmt(gp.sumUsd)}</div></div>`:''}
+      ${gp.cancels?`<div class="row-item"><div class="ri-l">Расторжений</div><div class="ri-r rv-red">${gp.cancels}</div></div>`:''}
+    </div>
+    <div class="tcard">
+      <div style="font-size:13px;font-weight:600;margin-bottom:12px">🔵 White House</div>
+      <div class="row-item"><div class="ri-l">Всего квартир</div><div class="ri-r">${whTotal}</div></div>
+      <div class="row-item"><div class="ri-l">Продано</div><div class="ri-r rv-green">${whSold}</div></div>
+      <div class="row-item"><div class="ri-l">Свободно</div><div class="ri-r">${whFree}</div></div>
+      <div class="row-item"><div class="ri-l">Рассрочка</div><div class="ri-r rv-blue">340</div></div>
+      <div class="row-item"><div class="ri-l">Полная оплата</div><div class="ri-r rv-green">73</div></div>
+      <div class="row-item"><div class="ri-l">Бартер (земля GP)</div><div class="ri-r">209</div></div>
+      ${wh.sumUsd?`<div class="row-item"><div class="ri-l">Сумма договоров</div><div class="ri-r">$${fmt(wh.sumUsd)}</div></div>`:''}
+      ${wh.cancels?`<div class="row-item"><div class="ri-l">Расторжений</div><div class="ri-r rv-red">${wh.cancels}</div></div>`:''}
+    </div>
+  </div>
+  `;
+
+  setTimeout(()=>{
+    const p1=document.getElementById('pf-gps');
+    const p2=document.getElementById('pf-whs');
+    if(p1)p1.style.width=gpPct+'%';
+    if(p2)p2.style.width=whPct+'%';
+  },100);
+}
+
+async function sendBulkSms(minDays) {
+  const el = document.getElementById('sms-result');
+  if (!el) return;
+  const targets = S.debtors.filter(d => d.phone && d.days >= minDays);
+  if (!targets.length) { showSmsResult(el, false, 'Нет должников с телефоном'); return; }
+  if (!confirm(`Отправить SMS ${targets.length} должникам (${minDays}+ дней)?`)) return;
+  showSmsResult(el, null, `Отправляю ${targets.length} SMS...`);
+  try {
+    const r = await fetch('/api/sms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ debtors: targets, minDays })
+    });
+    const d = await r.json();
+    showSmsResult(el, d.ok, `✅ Отправлено: ${d.sent} из ${d.total}`);
+  } catch(e) {
+    showSmsResult(el, false, '❌ ' + e.message);
+  }
+}
+
+async function sendOneSms(d) {
+  const el = document.getElementById('sms-result');
+  if (!confirm(`Отправить SMS: ${d.name} (${d.phone})?`)) return;
+  try {
+    const r = await fetch('/api/sms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ debtors: [d] })
+    });
+    const res = await r.json();
+    const sent = res.results?.[0];
+    if (el) showSmsResult(el, sent?.ok, sent?.ok ? `✅ SMS отправлено: ${d.name}` : `❌ ${sent?.description || 'Ошибка'}`);
+  } catch(e) {
+    if (el) showSmsResult(el, false, '❌ ' + e.message);
+  }
+}
+
+function showSmsResult(el, ok, msg) {
+  el.className = 'sms-result ' + (ok === null ? '' : ok ? 'sms-ok' : 'sms-err');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+load();
+
+function openDebtor(d) {
+  const pct = d.total > 0 ? Math.min(100, Math.round(d.paid / d.total * 100)) : 0;
+  const phoneClean = d.phone ? d.phone.replace(/\D/g,'').replace(/^0/,'') : '';
+  const waText = encodeURIComponent('Здравствуйте, '+d.name+'! Напоминаем о задолженности по кв.'+d.apt+' ('+d.proj+'). Остаток: '+Math.round(d.ost).toLocaleString('ru-RU')+' '+d.cur+'. Просрочено '+d.days+' дн. Просьба оплатить. Business House KG');
+  document.getElementById('debtor-modal').innerHTML = `
+    <div class="modal-box" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeDebtor()">✕</button>
+      <div class="modal-title">${d.name}</div>
+      <div class="modal-sub">Кв.${d.apt} · ${d.proj==='Green Park'?'🟢 Green Park':'🔵 White House'}</div>
+      <div class="modal-row"><span class="modal-label">Сумма договора</span><span class="modal-val">${d.total?fmt(d.total)+' '+d.cur:'—'}</span></div>
+      <div class="modal-row"><span class="modal-label">Оплачено</span><span class="modal-val" style="color:#16a34a">${fmt(d.paid)} ${d.cur}</span></div>
+      <div class="modal-row"><span class="modal-label">Остаток (долг)</span><span class="modal-val" style="color:#dc2626">${fmt(d.ost)} ${d.cur}</span></div>
+      <div class="modal-row"><span class="modal-label">Просрочено</span><span class="modal-val" style="color:${d.days>180?'#dc2626':d.days>60?'#d97706':'#2563eb'}">${d.days} дней</span></div>
+      ${d.phone?`<div class="modal-row"><span class="modal-label">Телефон</span><span class="modal-val">${d.phone}</span></div>`:''}
+      ${d.total>0?`<div style="margin-top:8px;font-size:11px;color:#8892a4">Оплачено ${pct}%</div>
+      <div class="modal-bar"><div class="modal-bar-fill" style="width:${pct}%"></div></div>`:''}
+      ${d.phone?`<div class="modal-btns">
+        <a class="dbtn dbtn-wa" href="https://wa.me/996${phoneClean}?text=${waText}" target="_blank" style="width:auto;padding:0 12px;gap:5px;font-size:13px">💬 WhatsApp</a>
+        <a class="dbtn dbtn-call" href="tel:${d.phone}" style="width:auto;padding:0 12px;gap:5px;font-size:13px">📞 Звонок</a>
+        <button class="dbtn dbtn-sms" onclick="closeDebtor();sendOneSms(${JSON.stringify(d).replace(/"/g,'&quot;')})" style="width:auto;padding:0 12px;font-size:13px">📱 SMS</button>
+      </div>`:''}
+    </div>`;
+  document.getElementById('debtor-modal').classList.add('open');
+}
+function closeDebtor() {
+  document.getElementById('debtor-modal').classList.remove('open');
+}
+</script>
+
+<div id="debtor-modal" class="modal-overlay" onclick="closeDebtor()"></div>
+</body>
+</html>
