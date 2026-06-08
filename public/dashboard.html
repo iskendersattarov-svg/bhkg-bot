@@ -441,6 +441,14 @@ function renderDebt(){
 
   document.getElementById('p-debt').innerHTML=`
   <div class="tcard" style="margin-bottom:12px">
+    <div class="sec" style="margin:0 0 10px">🧪 Тест SMS</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <input id="test-phone" type="tel" placeholder="Номер телефона (0700...)" style="flex:1;padding:8px 12px;border:1px solid #e2e5ed;border-radius:10px;font-size:13px;min-width:160px">
+      <button class="sms-btn" onclick="sendTestSms()">📤 Отправить тест</button>
+    </div>
+    <div id="test-sms-result" class="sms-result"></div>
+  </div>
+  <div class="tcard" style="margin-bottom:12px">
     <div class="sec" style="margin:0 0 10px">📱 SMS на сегодня / завтра</div>
     <div id="sms-sched-preview" style="font-size:13px;color:#8892a4">Нажмите "Загрузить список" для проверки</div>
     <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
@@ -628,6 +636,26 @@ async function sendOneSms(d) {
   }
 }
 
+async function sendTestSms() {
+  const phone = document.getElementById('test-phone').value.trim();
+  const el = document.getElementById('test-sms-result');
+  if (!phone) { showSmsResult(el, false, 'Введите номер телефона'); return; }
+  showSmsResult(el, null, 'Отправляю...');
+  try {
+    const r = await fetch('/api/sms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ debtors: [{
+        phone, name: 'Iskender Test', apt: '1', proj: 'White House', ost: 5000, cur: '$', days: 1
+      }] })
+    });
+    const d = await r.json();
+    showSmsResult(el, d.sent > 0, d.sent > 0 ? 'SMS отправлено!' : 'Ошибка: ' + (d.results?.[0]?.description || 'неизвестно'));
+  } catch(e) {
+    showSmsResult(el, false, 'Ошибка: ' + e.message);
+  }
+}
+
 async function loadSmsScheduled() {
   const preview = document.getElementById('sms-sched-preview');
   const btn = document.getElementById('btn-send-sched');
@@ -651,8 +679,14 @@ async function loadSmsScheduled() {
         html += `<div style="padding:4px 0;border-bottom:1px solid #f4f5f9">${p.name} · кв.${p.apt} · ${p.proj==='Green Park'?'GP':'WH'} · ${fmt(p.ost)} ${p.cur} · ${p.phone}</div>`;
       });
     }
-    if (d.todays.length === 0 && d.tomorrows.length === 0) {
-      html = '<div style="color:#22c55e">✅ Сегодня и завтра нет плательщиков</div>';
+    if (d.overdue3 && d.overdue3.length > 0) {
+      html += `<div style="font-weight:600;color:#dc2626;margin:10px 0 6px">🚨 Просрочено 3 дня — ${d.overdue3.length} чел.:</div>`;
+      d.overdue3.forEach(p => {
+        html += `<div style="padding:4px 0;border-bottom:1px solid #f4f5f9">${p.name} · кв.${p.apt} · ${p.proj==='Green Park'?'GP':'WH'} · ${fmt(p.ost)} ${p.cur} · ${p.phone}</div>`;
+      });
+    }
+    if (d.todays.length === 0 && d.tomorrows.length === 0 && (!d.overdue3 || d.overdue3.length === 0)) {
+      html = '<div style="color:#22c55e">✅ Сегодня нет SMS для отправки</div>';
     } else {
       btn.style.display = 'inline-flex';
     }

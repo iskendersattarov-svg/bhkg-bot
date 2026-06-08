@@ -11,6 +11,21 @@ function normalizePhone(phone) {
   return p;
 }
 
+function buildMsg(type, d) {
+  const name = d.name.split(' ')[1] || d.name; // Имя (без фамилии)
+  const sum = `${fmt(d.ost)} ${d.cur}`;
+  const proj = d.proj === 'Green Park' ? 'Green Park' : 'White House';
+  if (type === 'tomorrow') {
+    return `Zdravstvuyte, ${name}! Zavtra ${d.payDay}-e — srok oplaty kv.${d.apt} (${proj}). Summa: ${sum}. Business House KG`;
+  }
+  if (type === 'today') {
+    return `Zdravstvuyte, ${name}! Segodnya ${d.payDay}-e — srok oplaty kv.${d.apt} (${proj}). Prosim oplatit ${sum}. Business House KG`;
+  }
+  if (type === 'overdue3') {
+    return `Zdravstvuyte, ${name}! Oplata po kv.${d.apt} (${proj}) prosrochena na 3 dnya. Zadoljennost: ${sum}. Prosim srochno pogasit. Business House KG`;
+  }
+}
+
 async function sendSmsNikita(phone, message) {
   const login    = process.env.NIKITA_LOGIN;
   const password = process.env.NIKITA_PASSWORD;
@@ -53,10 +68,10 @@ async function fetchScheduled() {
     offset = data.offset || '';
   } while (offset);
 
-  const todays = [], tomorrows = [];
+  const todays = [], tomorrows = [], overdue3 = [];
   for (const r of records) {
     const f = r.fields;
-    if (!f['Телефон'] || !f['Остаток'] || f['Остаток'] <= 0 || !f['День оплаты']) continue;
+    if (!f['Телефон'] || !f['Остаток'] || f['Остаток'] <= 0) continue;
     const d = {
       name:   f['Имя'] || '',
       apt:    f['Квартира'] || '',
@@ -64,51 +79,47 @@ async function fetchScheduled() {
       ost:    f['Остаток'] || 0,
       cur:    f['Валюта'] || '',
       phone:  f['Телефон'] || '',
-      payDay: f['День оплаты']
+      payDay: f['День оплаты'] || 0,
+      days:   f['Дней просрочки'] || 0
     };
-    if (f['День оплаты'] === todayDay)    todays.push(d);
-    if (f['День оплаты'] === tomorrowDay) tomorrows.push(d);
+    if (d.payDay && d.payDay === todayDay)    todays.push(d);
+    if (d.payDay && d.payDay === tomorrowDay) tomorrows.push(d);
+    if (d.days === 3)                         overdue3.push(d);
   }
-  return { todays, tomorrows, todayDay, tomorrowDay };
+  return { todays, tomorrows, overdue3, todayDay, tomorrowDay };
 }
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const { todays, tomorrows, todayDay, tomorrowDay } = await fetchScheduled();
+  const { todays, tomorrows, overdue3, todayDay, tomorrowDay } = await fetchScheduled();
 
-  // GET — just return the preview list (no SMS)
+  // GET — preview list only, no SMS
   if (req.method === 'GET') {
-    return res.status(200).json({ ok: true, todays, tomorrows, todayDay, tomorrowDay });
+    return res.status(200).json({ ok: true, todays, tomorrows, overdue3, todayDay, tomorrowDay });
   }
 
-  // POST — actually send SMS
   if (req.method !== 'POST') return res.status(405).end();
 
   const results = [];
 
-  for (const d of todays) {
-    const phone = normalizePhone(d.phone);
-    const msg = `${d.name}, segodnya den oplaty kv.${d.apt} (${d.proj}). Summa: ${fmt(d.ost)} ${d.cur}. Prosba oplatit. Business House KG`;
-    try {
-      const ok = await sendSmsNikita(phone, msg);
-      results.push({ type: 'today', name: d.name, apt: d.apt, phone, ok });
-    } catch(e) {
-      results.push({ type: 'today', name: d.name, apt: d.apt, phone, ok: false, error: e.message });
+  const sendGroup = async (list, type) => {
+    for (const d of list) {
+      const phone = normalizePhone(d.phone);
+      const msg = buildMsg(type, d);
+      try {
+        const ok = await sendSmsNikita(phone, msg);
+        results.push({ type, name: d.name, apt: d.apt, phone, ok, msg });
+      } catch(e) {
+        results.push({ type, name: d.name, apt: d.apt, phone, ok: false, error: e.message });
+      }
     }
-  }
+  };
 
-  for (const d of tomorrows) {
-    const phone = normalizePhone(d.phone);
-    const msg = `${d.name}, zavtra den oplaty kv.${d.apt} (${d.proj}). Ostatok: ${fmt(d.ost)} ${d.cur}. Business House KG`;
-    try {
-      const ok = await sendSmsNikita(phone, msg);
-      results.push({ type: 'tomorrow', name: d.name, apt: d.apt, phone, ok });
-    } catch(e) {
-      results.push({ type: 'tomorrow', name: d.name, apt: d.apt, phone, ok: false, error: e.message });
-    }
-  }
+  await sendGroup(tomorrows, 'tomorrow');
+  await sendGroup(todays,    'today');
+  await sendGroup(overdue3,  'overdue3');
 
   return res.status(200).json({
     ok: true,

@@ -17,10 +17,10 @@ async function fetchScheduled() {
     offset = data.offset || '';
   } while (offset);
 
-  const todays = [], tomorrows = [];
+  const todays = [], tomorrows = [], overdue3 = [];
   for (const r of records) {
     const f = r.fields;
-    if (!f['Телефон'] || !f['Остаток'] || f['Остаток'] <= 0 || !f['День оплаты']) continue;
+    if (!f['Телефон'] || !f['Остаток'] || f['Остаток'] <= 0) continue;
     const d = {
       name:   f['Имя'] || '',
       apt:    f['Квартира'] || '',
@@ -28,12 +28,14 @@ async function fetchScheduled() {
       ost:    f['Остаток'] || 0,
       cur:    f['Валюта'] || '',
       phone:  f['Телефон'] || '',
-      payDay: f['День оплаты']
+      payDay: f['День оплаты'] || 0,
+      days:   f['Дней просрочки'] || 0
     };
-    if (f['День оплаты'] === todayDay)    todays.push(d);
-    if (f['День оплаты'] === tomorrowDay) tomorrows.push(d);
+    if (d.payDay === todayDay)    todays.push(d);
+    if (d.payDay === tomorrowDay) tomorrows.push(d);
+    if (d.days === 3)             overdue3.push(d);
   }
-  return { todays, tomorrows, todayDay, tomorrowDay };
+  return { todays, tomorrows, overdue3, todayDay, tomorrowDay };
 }
 
 module.exports = async function handler(req, res) {
@@ -41,7 +43,7 @@ module.exports = async function handler(req, res) {
     return res.status(401).json({ ok: false });
   }
 
-  const { todays, tomorrows } = await fetchScheduled();
+  const { todays, tomorrows, overdue3 } = await fetchScheduled();
 
   const fmt = n => n ? Math.round(n).toLocaleString('ru-RU') : '0';
 
@@ -50,9 +52,7 @@ module.exports = async function handler(req, res) {
 
   if (todays.length > 0) {
     msg += `🔴 Сегодня день оплаты (${todays.length} чел.):\n`;
-    todays.forEach(d => {
-      msg += `  • ${d.name}, кв.${d.apt} — ${fmt(d.ost)} ${d.cur}\n`;
-    });
+    todays.forEach(d => { msg += `  • ${d.name}, кв.${d.apt} — ${fmt(d.ost)} ${d.cur}\n`; });
     msg += '\n';
   } else {
     msg += `✅ Сегодня нет плательщиков\n\n`;
@@ -60,12 +60,16 @@ module.exports = async function handler(req, res) {
 
   if (tomorrows.length > 0) {
     msg += `🟡 Завтра день оплаты (${tomorrows.length} чел.):\n`;
-    tomorrows.forEach(d => {
-      msg += `  • ${d.name}, кв.${d.apt} — ${fmt(d.ost)} ${d.cur}\n`;
-    });
+    tomorrows.forEach(d => { msg += `  • ${d.name}, кв.${d.apt} — ${fmt(d.ost)} ${d.cur}\n`; });
     msg += '\n';
   } else {
     msg += `✅ Завтра нет плательщиков\n\n`;
+  }
+
+  if (overdue3.length > 0) {
+    msg += `🚨 Просрочено 3 дня (${overdue3.length} чел.):\n`;
+    overdue3.forEach(d => { msg += `  • ${d.name}, кв.${d.apt} — ${fmt(d.ost)} ${d.cur}\n`; });
+    msg += '\n';
   }
 
   msg += `Перейдите в дашборд → вкладка "Должники" → нажмите "Отправить SMS"`;
