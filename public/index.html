@@ -161,6 +161,45 @@ const STARTS = {
 };
 const START_DATE_UTC = Date.UTC(2026, 4, 16);
 
+// Parse Graf column — returns payDay (int 1-31) or null (skip)
+function parseGraf(graf, today) {
+  if (!graf) return null;
+  const g = graf.toLowerCase();
+  // Skip patterns
+  const skip = ['полная','своб','бартер','сотрудник','не звон','расторг','заморозк','замарозк','пусто'];
+  for (const p of skip) { if (g.includes(p)) return null; }
+
+  // "оплата с DD.MM.YYYY" or "оплата с DD.MM.YY"
+  const mDate = g.match(/оплата\s+с\s+(\d{1,2})\.(\d{1,2})\.(\d{2,4})/);
+  if (mDate) {
+    let yy = parseInt(mDate[3]); if (yy < 100) yy += 2000;
+    const startDate = new Date(yy, parseInt(mDate[2]) - 1, parseInt(mDate[1]));
+    if (startDate > today) return null; // hasn't started yet
+    return parseInt(mDate[1]); // payDay = day of that date
+  }
+  // "оплата с MM.YYYY"
+  const mMonth = g.match(/оплата\s+с\s+(\d{1,2})\.(\d{4})/);
+  if (mMonth) {
+    const startDate = new Date(parseInt(mMonth[2]), parseInt(mMonth[1]) - 1, 1);
+    if (startDate > today) return null;
+    return 1;
+  }
+  // "оплата N числа" or "оплата N"
+  const mDay = g.match(/оплата\s+(\d+)/);
+  if (mDay) return parseInt(mDay[1]);
+
+  return null; // anything else = skip
+}
+
+// Calculate days overdue based on payDay and today's date
+function calcDaysOverdue(payDay, today) {
+  let payDate = new Date(today.getFullYear(), today.getMonth(), payDay);
+  if (payDate > today) {
+    payDate = new Date(today.getFullYear(), today.getMonth() - 1, payDay);
+  }
+  return Math.floor((today - payDate) / 86400000);
+}
+
 // filterDate: the specific date to show movements for (any date the user picks)
 function parseKassa(wb, filterDate, isWH) {
   const today = new Date();
@@ -249,21 +288,14 @@ function parseKassa(wb, filterDate, isWH) {
         if (cur === '$') r.sumUsd += sum;
         else r.sumSom += sum;
       }
-      const graf    = row[grafCol]    ? String(row[grafCol]).trim()    : '';
-      const lastPay = row[lastPayCol];
-      if (!graf.includes('полная') && typeof ost === 'number' && ost > 0 && lastPay instanceof Date) {
-        const match = graf.match(/(\d+)/);
-        if (match) {
-          const payDay = parseInt(match[1]);
-          let nextPay = new Date(lastPay);
-          nextPay.setDate(payDay);
-          if (nextPay <= lastPay) nextPay.setMonth(nextPay.getMonth() + 1);
-          const daysOverdue = Math.floor((today - nextPay) / 86400000);
-          const phone = isWH ? (row[18] ? String(row[18]).trim() : '') : (row[14] ? String(row[14]).trim() : '');
-          const paid  = typeof row[10] === 'number' ? row[10] : 0;
-          const total = typeof row[9]  === 'number' ? row[9]  : 0;
-          r.debtors.push({ apt: row[1], name: row[2] ? String(row[2]).trim() : '', days: daysOverdue, ost, cur, phone, paid, total, payDay });
-        }
+      const grafRaw = row[grafCol] ? String(row[grafCol]).trim() : '';
+      const payDay  = parseGraf(grafRaw, today);
+      if (payDay && typeof ost === 'number' && ost > 0) {
+        const daysOverdue = calcDaysOverdue(payDay, today);
+        const phone = isWH ? (row[18] ? String(row[18]).trim() : '') : (row[14] ? String(row[14]).trim() : '');
+        const paid  = typeof row[10] === 'number' ? row[10] : 0;
+        const total = typeof row[9]  === 'number' ? row[9]  : 0;
+        r.debtors.push({ apt: row[1], name: row[2] ? String(row[2]).trim() : '', days: daysOverdue, ost, cur, phone, paid, total, payDay });
       }
     }
     r.debtors.sort((a, b) => b.days - a.days);

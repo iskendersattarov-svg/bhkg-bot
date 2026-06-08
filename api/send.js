@@ -1,9 +1,10 @@
 const AT = process.env.AIRTABLE_TOKEN;
 const BASE = 'appQGNsUDfjxnDSKP';
-const BAL_TABLE  = 'tblmh8pbeCrYVOrHQ';
+const BAL_TABLE   = 'tblmh8pbeCrYVOrHQ';
 const SALES_TABLE = 'tblPjnNSuOSknfcch';
 const DEBTORS_TABLE = 'tbl1oRCKWQYjXgOA7';
-const MOV_TABLE  = 'tblH7zcYRnRRCKjEL';
+const MOV_TABLE   = 'tblH7zcYRnRRCKjEL';
+const SMS_TABLE   = 'tbln82wf1vlKsuAdl';
 
 function fmt(n) { return n ? Math.round(n).toLocaleString('ru-RU') : '0'; }
 
@@ -104,6 +105,40 @@ async function saveDebtors(proj, data) {
   }
 }
 
+// Save SMS queue (today/tomorrow/overdue3) — fast, only a few records
+async function saveSmsQueue(gpData, whData, dateStr) {
+  // KG time = UTC+6
+  const now = new Date(Date.now() + 6 * 3600 * 1000);
+  const todayDay    = now.getUTCDate();
+  const tomorrowDay = new Date(now.getTime() + 86400000).getUTCDate();
+
+  const allDebtors = [];
+  if (gpData && gpData.debtors) gpData.debtors.forEach(d => allDebtors.push({ ...d, proj: 'Green Park' }));
+  if (whData && whData.debtors) whData.debtors.forEach(d => allDebtors.push({ ...d, proj: 'White House' }));
+
+  const todays   = allDebtors.filter(d => d.payDay === todayDay && d.ost > 0 && d.phone);
+  const tomorrows= allDebtors.filter(d => d.payDay === tomorrowDay && d.ost > 0 && d.phone);
+  const overdue3 = allDebtors.filter(d => d.days === 3 && d.ost > 0 && d.phone);
+
+  // Delete old records for today
+  const ex = await (await atFetch(`${BASE}/${SMS_TABLE}?filterByFormula=${encodeURIComponent(`{Дата}="${dateStr}"`)}`)).json();
+  if (ex.records && ex.records.length > 0) {
+    const ids = ex.records.map(r => r.id);
+    for (let i = 0; i < ids.length; i += 10) {
+      const qs = ids.slice(i, i + 10).map(id => `records[]=${id}`).join('&');
+      await atFetch(`${BASE}/${SMS_TABLE}?${qs}`, { method: 'DELETE' });
+    }
+  }
+
+  // Save today/tomorrow/overdue3 as 3 records
+  const records = [
+    { fields: { 'Тип': 'today',    'Дата': dateStr, 'Список': JSON.stringify(todays) } },
+    { fields: { 'Тип': 'tomorrow', 'Дата': dateStr, 'Список': JSON.stringify(tomorrows) } },
+    { fields: { 'Тип': 'overdue3', 'Дата': dateStr, 'Список': JSON.stringify(overdue3) } }
+  ];
+  await atFetch(`${BASE}/${SMS_TABLE}`, { method: 'POST', body: JSON.stringify({ records }) });
+}
+
 // Save daily movements to Airtable — upsert by date + project
 async function saveMovements(proj, data, dateStr) {
   if (!data) return;
@@ -198,7 +233,8 @@ module.exports = async function handler(req, res) {
         saveDebtors('Green Park', gp),
         saveDebtors('White House', wh),
         saveMovements('Green Park', gp, dateStr),
-        saveMovements('White House', wh, dateStr)
+        saveMovements('White House', wh, dateStr),
+        saveSmsQueue(gp, wh, dateStr)
       ]);
     } catch(e) { console.error('Airtable update:', e); }
   }

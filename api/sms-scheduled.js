@@ -1,6 +1,6 @@
 const AT = process.env.AIRTABLE_TOKEN;
 const BASE = 'appQGNsUDfjxnDSKP';
-const DEBTORS_TABLE = 'tbl1oRCKWQYjXgOA7';
+const SMS_TABLE = 'tbln82wf1vlKsuAdl';
 
 function fmt(n) { return n ? Math.round(n).toLocaleString('ru-RU') : '0'; }
 
@@ -12,7 +12,9 @@ function normalizePhone(phone) {
 }
 
 function buildMsg(type, d) {
-  const name = d.name.split(' ')[1] || d.name; // Имя (без фамилии)
+  const parts = (d.name || '').trim().split(/\s+/);
+  // Kyrgyz/Russian names: Фамилия Имя Отчество — use Имя (index 1), fallback to full name
+  const name = parts[1] || parts[0] || d.name;
   const sum = `${fmt(d.ost)} ${d.cur}`;
   const proj = d.proj === 'Green Park' ? 'Green Park' : 'White House';
   if (type === 'tomorrow') {
@@ -24,6 +26,7 @@ function buildMsg(type, d) {
   if (type === 'overdue3') {
     return `Zdravstvuyte, ${name}! Oplata po kv.${d.apt} (${proj}) prosrochena na 3 dnya. Zadoljennost: ${sum}. Prosim srochno pogasit. Business House KG`;
   }
+  return '';
 }
 
 async function sendSmsNikita(phone, message) {
@@ -50,54 +53,43 @@ async function sendSmsNikita(phone, message) {
     body: soapBody
   });
   const text = await res.text();
+  if (text.includes('S:Client') || text.includes('Fault')) throw new Error(text.slice(0, 200));
   const code = parseInt((text.match(/<code>(\d+)<\/code>/) || [])[1] ?? '-1');
   return code === 0;
 }
 
-async function fetchScheduled() {
-  const now = new Date(Date.now() + 6 * 3600 * 1000); // KG = UTC+6
+async function fetchSmsQueue() {
+  // KG time = UTC+6
+  const now = new Date(Date.now() + 6 * 3600 * 1000);
+  const todayStr = `${now.getUTCFullYear()}-${String(now.getUTCMonth()+1).padStart(2,'0')}-${String(now.getUTCDate()).padStart(2,'0')}`;
   const todayDay    = now.getUTCDate();
   const tomorrowDay = new Date(now.getTime() + 86400000).getUTCDate();
 
-  let records = [], offset = '';
-  do {
-    const url = `https://api.airtable.com/v0/${BASE}/${DEBTORS_TABLE}?pageSize=100${offset ? '&offset=' + offset : ''}`;
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${AT}` } });
-    const data = await res.json();
-    records = records.concat(data.records || []);
-    offset = data.offset || '';
-  } while (offset);
+  const url = `https://api.airtable.com/v0/${BASE}/${SMS_TABLE}?filterByFormula=${encodeURIComponent(`{Дата}="${todayStr}"`)}`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${AT}` } });
+  const data = await res.json();
 
-  const todays = [], tomorrows = [], overdue3 = [];
-  for (const r of records) {
-    const f = r.fields;
-    if (!f['Телефон'] || !f['Остаток'] || f['Остаток'] <= 0) continue;
-    const d = {
-      name:   f['Имя'] || '',
-      apt:    f['Квартира'] || '',
-      proj:   f['Объект'] || '',
-      ost:    f['Остаток'] || 0,
-      cur:    f['Валюта'] || '',
-      phone:  f['Телефон'] || '',
-      payDay: f['День оплаты'] || 0,
-      days:   f['Дней просрочки'] || 0
-    };
-    if (d.payDay && d.payDay === todayDay)    todays.push(d);
-    if (d.payDay && d.payDay === tomorrowDay) tomorrows.push(d);
-    if (d.days === 3)                         overdue3.push(d);
+  let todays = [], tomorrows = [], overdue3 = [];
+  for (const r of (data.records || [])) {
+    try {
+      const list = JSON.parse(r.fields['Список'] || '[]');
+      if (r.fields['Тип'] === 'today')    todays    = list;
+      if (r.fields['Тип'] === 'tomorrow') tomorrows = list;
+      if (r.fields['Тип'] === 'overdue3') overdue3  = list;
+    } catch(e) {}
   }
-  return { todays, tomorrows, overdue3, todayDay, tomorrowDay };
+  return { todays, tomorrows, overdue3, todayDay, tomorrowDay, todayStr };
 }
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const { todays, tomorrows, overdue3, todayDay, tomorrowDay } = await fetchScheduled();
+  const { todays, tomorrows, overdue3, todayDay, tomorrowDay, todayStr } = await fetchSmsQueue();
 
   // GET — preview list only, no SMS
   if (req.method === 'GET') {
-    return res.status(200).json({ ok: true, todays, tomorrows, overdue3, todayDay, tomorrowDay });
+    return res.status(200).json({ ok: true, todays, tomorrows, overdue3, todayDay, tomorrowDay, date: todayStr });
   }
 
   if (req.method !== 'POST') return res.status(405).end();
@@ -112,7 +104,7 @@ module.exports = async function handler(req, res) {
         const ok = await sendSmsNikita(phone, msg);
         results.push({ type, name: d.name, apt: d.apt, phone, ok, msg });
       } catch(e) {
-        results.push({ type, name: d.name, apt: d.apt, phone, ok: false, error: e.message });
+        results.push({ type, name: d.name, apt: d.apt, phone, ok: false, error: e.message, msg });
       }
     }
   };
