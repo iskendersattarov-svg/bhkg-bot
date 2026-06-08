@@ -65,7 +65,7 @@ async function fetchSmsQueue() {
   const todayDay    = now.getUTCDate();
   const tomorrowDay = new Date(now.getTime() + 86400000).getUTCDate();
 
-  const url = `https://api.airtable.com/v0/${BASE}/${SMS_TABLE}?filterByFormula=${encodeURIComponent(`{Дата}="${todayStr}"`)}`;
+  const url = `https://api.airtable.com/v0/${BASE}/${SMS_TABLE}`;
   const res = await fetch(url, { headers: { Authorization: `Bearer ${AT}` } });
   const data = await res.json();
 

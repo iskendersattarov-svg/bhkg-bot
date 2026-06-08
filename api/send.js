@@ -106,11 +106,12 @@ async function saveDebtors(proj, data) {
 }
 
 // Save SMS queue (today/tomorrow/overdue3) — fast, only a few records
-async function saveSmsQueue(gpData, whData, dateStr) {
-  // KG time = UTC+6
+async function saveSmsQueue(gpData, whData) {
+  // Always use KG today (UTC+6), not the movement date
   const now = new Date(Date.now() + 6 * 3600 * 1000);
   const todayDay    = now.getUTCDate();
   const tomorrowDay = new Date(now.getTime() + 86400000).getUTCDate();
+  const dateStr = `${now.getUTCFullYear()}-${String(now.getUTCMonth()+1).padStart(2,'0')}-${String(now.getUTCDate()).padStart(2,'0')}`;
 
   const allDebtors = [];
   if (gpData && gpData.debtors) gpData.debtors.forEach(d => allDebtors.push({ ...d, proj: 'Green Park' }));
@@ -234,7 +235,7 @@ module.exports = async function handler(req, res) {
         saveDebtors('White House', wh),
         saveMovements('Green Park', gp, dateStr),
         saveMovements('White House', wh, dateStr),
-        saveSmsQueue(gp, wh, dateStr)
+        saveSmsQueue(gp, wh)
       ]);
     } catch(e) { console.error('Airtable update:', e); }
   }
