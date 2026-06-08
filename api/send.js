@@ -93,6 +93,7 @@ async function saveDebtors(proj, data) {
         'Телефон': d.phone || '',
         'Оплачено': d.paid || 0,
         'Сумма договора': d.total || 0,
+        'День оплаты': d.payDay || 0,
         'Дата': dateStr
       }
     }));

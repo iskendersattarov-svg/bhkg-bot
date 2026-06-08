@@ -431,7 +431,7 @@ function renderCash(){
 function scf(f){ S.cf=f; renderCash(); }
 
 function renderDebt(){
-  let list=S.debtors;
+  let list=S.debtors.filter(d=>d.days>0);
   if(S.df==='gp')list=list.filter(d=>d.proj==='Green Park');
   else if(S.df==='wh')list=list.filter(d=>d.proj==='White House');
   else if(S.df==='180')list=list.filter(d=>d.days>180);
@@ -440,6 +440,15 @@ function renderDebt(){
   const more=list.length-shown.length;
 
   document.getElementById('p-debt').innerHTML=`
+  <div class="tcard" style="margin-bottom:12px">
+    <div class="sec" style="margin:0 0 10px">📱 SMS на сегодня / завтра</div>
+    <div id="sms-sched-preview" style="font-size:13px;color:#8892a4">Нажмите "Загрузить список" для проверки</div>
+    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+      <button class="sms-btn" onclick="loadSmsScheduled()">🔍 Загрузить список</button>
+      <button class="sms-btn" id="btn-send-sched" onclick="sendSmsScheduled()" style="display:none;background:#dc2626;color:#fff">📤 Отправить SMS</button>
+    </div>
+    <div id="sms-sched-result" class="sms-result"></div>
+  </div>
   <div class="filters">
     ${[['all','Все'],['gp','🟢 Green Park'],['wh','🔵 White House'],['180','180+ дней'],['60','60–180 дней']].map(([v,l])=>
       `<button class="filt ${S.df===v?'on':''}" onclick="sdf('${v}')">${l}</button>`
@@ -616,6 +625,59 @@ async function sendOneSms(d) {
     if (el) showSmsResult(el, sent?.ok, sent?.ok ? `✅ SMS отправлено: ${d.name}` : `❌ ${sent?.description || 'Ошибка'}`);
   } catch(e) {
     if (el) showSmsResult(el, false, '❌ ' + e.message);
+  }
+}
+
+async function loadSmsScheduled() {
+  const preview = document.getElementById('sms-sched-preview');
+  const btn = document.getElementById('btn-send-sched');
+  preview.textContent = 'Загружаю...';
+  btn.style.display = 'none';
+  try {
+    const r = await fetch('/api/sms-scheduled');
+    const d = await r.json();
+    if (!d.ok) { preview.textContent = 'Ошибка загрузки'; return; }
+
+    let html = '';
+    if (d.todays.length > 0) {
+      html += `<div style="font-weight:600;color:#dc2626;margin-bottom:6px">🔴 Сегодня (${d.todayDay}-е) — ${d.todays.length} чел.:</div>`;
+      d.todays.forEach(p => {
+        html += `<div style="padding:4px 0;border-bottom:1px solid #f4f5f9">${p.name} · кв.${p.apt} · ${p.proj==='Green Park'?'GP':'WH'} · ${fmt(p.ost)} ${p.cur} · ${p.phone}</div>`;
+      });
+    }
+    if (d.tomorrows.length > 0) {
+      html += `<div style="font-weight:600;color:#d97706;margin:10px 0 6px">🟡 Завтра (${d.tomorrowDay}-е) — ${d.tomorrows.length} чел.:</div>`;
+      d.tomorrows.forEach(p => {
+        html += `<div style="padding:4px 0;border-bottom:1px solid #f4f5f9">${p.name} · кв.${p.apt} · ${p.proj==='Green Park'?'GP':'WH'} · ${fmt(p.ost)} ${p.cur} · ${p.phone}</div>`;
+      });
+    }
+    if (d.todays.length === 0 && d.tomorrows.length === 0) {
+      html = '<div style="color:#22c55e">✅ Сегодня и завтра нет плательщиков</div>';
+    } else {
+      btn.style.display = 'inline-flex';
+    }
+    preview.innerHTML = html;
+  } catch(e) {
+    preview.textContent = 'Ошибка: ' + e.message;
+  }
+}
+
+async function sendSmsScheduled() {
+  const res = document.getElementById('sms-sched-result');
+  const btn = document.getElementById('btn-send-sched');
+  if (!confirm('Отправить SMS всем из списка выше?')) return;
+  btn.disabled = true;
+  btn.textContent = 'Отправляю...';
+  showSmsResult(res, null, 'Отправляю...');
+  try {
+    const r = await fetch('/api/sms-scheduled', { method: 'POST' });
+    const d = await r.json();
+    showSmsResult(res, d.ok, `Отправлено ${d.sent} из ${d.total}`);
+    btn.style.display = 'none';
+  } catch(e) {
+    showSmsResult(res, false, 'Ошибка: ' + e.message);
+    btn.disabled = false;
+    btn.textContent = '📤 Отправить SMS';
   }
 }
 

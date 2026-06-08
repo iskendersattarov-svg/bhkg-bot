@@ -259,12 +259,10 @@ function parseKassa(wb, filterDate, isWH) {
           nextPay.setDate(payDay);
           if (nextPay <= lastPay) nextPay.setMonth(nextPay.getMonth() + 1);
           const daysOverdue = Math.floor((today - nextPay) / 86400000);
-          if (daysOverdue > 0) {
-            const phone = isWH ? (row[18] ? String(row[18]).trim() : '') : (row[14] ? String(row[14]).trim() : '');
-            const paid  = typeof row[10] === 'number' ? row[10] : 0;
-            const total = typeof row[9]  === 'number' ? row[9]  : 0;
-            r.debtors.push({ apt: row[1], name: row[2] ? String(row[2]).trim() : '', days: daysOverdue, ost, cur, phone, paid, total });
-          }
+          const phone = isWH ? (row[18] ? String(row[18]).trim() : '') : (row[14] ? String(row[14]).trim() : '');
+          const paid  = typeof row[10] === 'number' ? row[10] : 0;
+          const total = typeof row[9]  === 'number' ? row[9]  : 0;
+          r.debtors.push({ apt: row[1], name: row[2] ? String(row[2]).trim() : '', days: daysOverdue, ost, cur, phone, paid, total, payDay });
         }
       }
     }
