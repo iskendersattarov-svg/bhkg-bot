@@ -32,7 +32,7 @@ function buildMsg(type, d) {
 async function sendSmsNikita(phone, message) {
   const login    = process.env.NIKITA_LOGIN;
   const password = process.env.NIKITA_PASSWORD;
-  const sender   = process.env.NIKITA_SENDER || 'BHKG';
+  const sender   = process.env.NIKITA_SENDER || 'businessHKG';
   if (!login || !password) throw new Error('NIKITA creds not set');
 
   const soapBody = `<?xml version="1.0" encoding="UTF-8"?>
